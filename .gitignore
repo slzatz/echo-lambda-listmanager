@@ -1,3 +1,13 @@
+# My additions
+*.pyc
+*.swp
+*.zip
+settings.py
+config.py
+config.js
+requests/
+requests-2.9.1.dist-info/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
