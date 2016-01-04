@@ -18,11 +18,12 @@ def lambda_handler(event, context):
         response = intent_request(session, request)
     else:
         output_speech = "I couldn't tell which type of request that was.  Try again."
-        response = {'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}
+        response= {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}}
 
+    response['version'] = appVersion
     print json.dumps(response) 
 
-    return {"version":appVersion,"response":response}
+    return response
 
 def launch_request(session, request):
     output_speech = "Welcome to List Manager. You can add a new item."
@@ -41,22 +42,27 @@ def intent_request(session, request):
         except KeyError:
             context = None
 
-        title = request['intent']['slots']['title']['value']
-        #client = boto3.client('ses')
-        #The below should not be an email to cloudmailin, it should be a direct post to the server (dummy)
-        #response = client.send_email(Source='slzatz@gmail.com', Destination={'ToAddresses':['6697b86bca34dcd126cb@cloudmailin.net']}, Message={'Subject':{'Data':item+mods}, 'Body':{'Text':{'Data':'Hi'}}})
-        #r = requests.post("http://httpbin.org/post", data = {"key":"value"})
-        #r = requests.post("http://54...:5000/incoming", data={"headers[Subject]":"This is a test of posting", 'plain':"hello"})
-        #r = requests.post("http://54...:5000/incoming", data={"headers[Subject]":item+mods, 'plain':"This was created via Amazon Echo"})
+        title = request['intent']['slots']['mytitle']['value']
         data={'title':title, 'note':"This was created via Amazon Echo"}
         if context:
             data.update({'context':context}) 
-        r = requests.post(c.ec_uri+":5000/incoming_from_echo", data=data})
-        output_speech = "I added item {} to context".format(title, context if context else "No Context")
-        response = {'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}
+        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", data=data)
+        #output_speech = "I added item {} to context {}".format(title, context if context else "No Context")
+        output_speech = "I added item {}.  What is the context?".format(title)
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, "sessionAttributes":{'title':title}}
+        return response
+
+    elif intent ==  "SetContext":
+
+        context = request['intent']['slots']['mycontext']['value']
+        title = session['attributes']['title']
+        data={'title':title, 'context':context, 'note':"This was created via Amazon Echo"}
+        r = requests.post(c.ec_uri+":5000/incoming_from_echo", data=data)
+        output_speech = "I added item {} to context {}".format(title, context if context else "No Context")
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
     else:
         output_speech = "I couldn't tell which type of intent request that was.  Try again."
-        response = {'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}}
         return response
