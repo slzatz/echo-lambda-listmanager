@@ -40,7 +40,7 @@ def intent_request(session, request):
         title = request['intent']['slots']['mytitle']['value']
         data={'title':title, 'note':"This was created via Amazon Echo"}
         output_speech = "I added item {}.  What is the context?".format(title)
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, "sessionAttributes":{'title':title}}
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':{'title':title}}
         return response
 
     elif intent ==  "SetContext":
@@ -48,9 +48,9 @@ def intent_request(session, request):
         context = request['intent']['slots']['mycontext']['value']
         title = session['attributes']['title']
         data={'title':title, 'context':context, 'note':"This was created via Amazon Echo"}
-        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
         output_speech = "The item will be place in context {}. Do you want it to be starred?".format(context)
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, "sessionAttributes"{'title':title, 'context':context}}
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':{'title':title, 'context':context}}
         return response
 
     elif intent == "AMAZON.YesIntent":
