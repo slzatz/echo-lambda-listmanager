@@ -37,17 +37,8 @@ def intent_request(session, request):
 
     if intent ==  "AddItem":
 
-        try:
-            context = request['intent']['slots']['mycontext']['value']
-        except KeyError:
-            context = None
-
         title = request['intent']['slots']['mytitle']['value']
         data={'title':title, 'note':"This was created via Amazon Echo"}
-        if context:
-            data.update({'context':context}) 
-        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", data=data)
-        #output_speech = "I added item {} to context {}".format(title, context if context else "No Context")
         output_speech = "I added item {}.  What is the context?".format(title)
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, "sessionAttributes":{'title':title}}
         return response
@@ -57,8 +48,31 @@ def intent_request(session, request):
         context = request['intent']['slots']['mycontext']['value']
         title = session['attributes']['title']
         data={'title':title, 'context':context, 'note':"This was created via Amazon Echo"}
-        r = requests.post(c.ec_uri+":5000/incoming_from_echo", data=data)
-        output_speech = "I added item {} to context {}".format(title, context if context else "No Context")
+        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        output_speech = "The item will be place in context {}. Do you want it to be starred?".format(context)
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, "sessionAttributes"{'title':title, 'context':context}}
+        return response
+
+    elif intent == "AMAZON.YesIntent":
+
+        star = True
+        # ? should use dict.copy()
+        title = session['attributes']['title']
+        context = session['attributes']['context']
+        data={'title':title, 'context':context, 'star':True}
+        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        output_speech = "The item will be starred".format(context)
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+        return response
+
+    elif intent == "AMAZON.NoIntent":
+
+        star = False
+        title = session['attributes']['title']
+        context = session['attributes']['context']
+        data={'title':title, 'context':context, 'star':False}
+        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        output_speech = "The item will not be starred".format(context)
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
