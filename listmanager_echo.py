@@ -1,5 +1,36 @@
 '''
 List manager is an echo skill to add an item to mylistmanager
+
+CreateItem Create {mytitle}
+CreateItem Create item {mytitle}
+CreateItem Add {mytitle}
+CreateItem Add item {mytitle}
+SetContext {mycontext}
+SetContext The context is {mycontext}
+RetrieveContextItems Retrieve context {mycontext}
+RetrieveContextItems Retrieve items from context {mycontext}
+RetrieveContextItems Retrieve tasks from context {mycontext}
+RetrieveContextItems Get context {mycontext}
+RetrieveContextItems Get items from context {mycontext}
+RetrieveContextItems Get tasks from context {mycontext}
+RetrieveFolderItems Retrieve folder {myfolder}
+RetrieveFolderItems Retrieve items from folder {myfolder}
+RetrieveFolderItems Retrieve tasks from folder {myfolder}
+RetrieveFolderItems Get folder {myfolder}
+RetrieveFolderItems Get items from folder {myfolder}
+RetrieveFolderItems Get tasks from folder {myfolder}
+RetrieveAllItems Retrieve all items
+RetrieveAllItems Get all items
+RetrieveSpecificItems Find {queryterm}
+RetrieveSpecificItems Search {queryterm}
+RetrieveStarredItems Retrieve starred {mycontext} items
+RetrieveStarredItems Get starred {mycontext} items
+RetrieveStarredItems Retrieve starred items from {mycontext} 
+RetrieveStarredItems Get starred items from {mycontext} 
+RetrieveStarredItems Retrieve starred {mycontext} tasks
+RetrieveStarredItems Get starred {mycontext} tasks
+RetrieveStarredItems Retrieve starred tasks from {mycontext} 
+RetrieveStarredItems Get starred tasks from {mycontext}
 '''
 import json
 import requests
@@ -29,7 +60,7 @@ def lambda_handler(event, context):
     return response
 
 def launch_request(session, request):
-    output_speech = "Welcome to List Manager. You can add a new item."
+    output_speech = "Welcome to List Manager. You can create a new item and more."
     response = {'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}
     return response
 
@@ -57,7 +88,6 @@ def intent_request(session, request):
         return response
 
     elif intent == "AMAZON.YesIntent":
-
         star = True
         # ? should use dict.copy()
         title = session['attributes']['title']
@@ -69,7 +99,6 @@ def intent_request(session, request):
         return response
 
     elif intent == "AMAZON.NoIntent":
-
         star = False
         title = session['attributes']['title']
         context = session['attributes']['context']
@@ -79,13 +108,62 @@ def intent_request(session, request):
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
-    elif intent =="RetrieveAllItems":
+    elif intent == "RetrieveFolderItems":
+        folder_title = request['intent']['slots']['myfolder'].get('value', '')
+        folder_title = folder_title.lower()
+        count = remote_session.query(Task).join(Folder).filter(and_(Folder.title==folder_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).count()
+        tasks = remote_session.query(Task).join(Folder).filter(and_(Folder.title==folder_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).limit(10).all()
+
+        if count:
+            output_speech = "The total number of tasks is {}. ".format(count)
+            now = datetime.now()
+            for n,task in enumerate(tasks, start=1):
+                output_speech+="{}, {}. Last modified {} days ago. ".format(n, task.title, (now-task.modified).days)
+        else:
+            output_speech = "I did not find anything."
+
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+        return response
+
+    elif intent == "RetrieveContextItems":
+        # TO DO: count the tasks and report on the number and then take the first X (probably ~ 10)
+        #context_title = request['intent']['slots']['mycontext']['value']
+        context_title = request['intent']['slots']['mycontext'].get('value', '')
+
+        try:
+            c = remote_session.query(Context).filter_by(title=context_title).one()
+        except sqla_orm_exc.NoResultFound:
+            tasks = []
+        else:
+            tasks = c.tasks
+
+        if tasks:
+            output_speech = ''
+            for n,task in enumerate(tasks, start=1):
+                output_speech+='{}, {}. '.format(n, task.title)
+        else:
+            output_speech = 'I did not find anything.'
+
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+        return response
+
+    elif intent == "RetrieveAllItems":
         #tasks = remote_session.query(Task).filter(Task.star==True).all()
         #tasks = remote_session.query(Task).join(Context).filter(and_(Context.title=='work', Task.star==True, Task.completed==None, datetime.now()-Task.modified<timedelta(days=30))).all()
-        f = remote_session.query(Folder).filter_by(title='echo').one()
-        tasks = f.tasks
-        titles = [x.title for x in tasks][:4]
-        output_speech = '.'.join(titles)
+        try:
+            f = remote_session.query(Folder).filter_by(title='echo').one()
+        except sqla_orm_exc.NoResultFound:
+            tasks = []
+        else:
+            tasks = f.tasks
+
+        if tasks:
+            output_speech = ''
+            for n,task in enumerate(tasks, start=1):
+                output_speech+='{}, {}. '.format(n, task.title)
+        else:
+            output_speech = 'I did not find anything.'
+
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
