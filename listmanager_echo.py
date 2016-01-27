@@ -118,7 +118,7 @@ def intent_request(session, request):
             output_speech = "The total number of tasks is {}. ".format(count)
             now = datetime.now()
             for n,task in enumerate(tasks, start=1):
-                output_speech+="{}, {}. Last modified {} days ago. ".format(n, task.title, (now-task.modified).days)
+                output_speech+="{}, {}. Modified {} days ago. ".format(n, task.title, (now-task.modified).days)
         else:
             output_speech = "I did not find anything."
 
@@ -129,18 +129,16 @@ def intent_request(session, request):
         # TO DO: count the tasks and report on the number and then take the first X (probably ~ 10)
         #context_title = request['intent']['slots']['mycontext']['value']
         context_title = request['intent']['slots']['mycontext'].get('value', '')
+        context_title = context_title.lower()
+        count = remote_session.query(Task).join(Context).filter(and_(Context.title==context_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).count()
+        tasks = remote_session.query(Task).join(Context).filter(and_(Context.title==context_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).limit(10).all()
 
-        try:
-            c = remote_session.query(Context).filter_by(title=context_title).one()
-        except sqla_orm_exc.NoResultFound:
-            tasks = []
-        else:
-            tasks = c.tasks
-
-        if tasks:
-            output_speech = ''
+        if count:
+            output_speech = "The total number of tasks is {}. ".format(count)
+            now = datetime.now()
             for n,task in enumerate(tasks, start=1):
-                output_speech+='{}, {}. '.format(n, task.title)
+                output_speech+="{}, {}. Modified {} days ago. ".format(n, task.title, (now-task.modified).days)
+
         else:
             output_speech = 'I did not find anything.'
 
