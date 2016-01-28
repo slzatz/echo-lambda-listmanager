@@ -118,7 +118,7 @@ def intent_request(session, request):
             output_speech = "The total number of tasks is {}. ".format(count)
             now = datetime.now()
             for n,task in enumerate(tasks, start=1):
-                output_speech+="{}, {}. Modified {} days ago. ".format(n, task.title, (now-task.modified).days)
+                output_speech+="{}, {}. Created {} days ago. It is {} starred. ".format(n, task.title, (now-task.created).days, '' if task.star else 'not')
         else:
             output_speech = "I did not find anything."
 
@@ -126,8 +126,6 @@ def intent_request(session, request):
         return response
 
     elif intent == "RetrieveContextItems":
-        # TO DO: count the tasks and report on the number and then take the first X (probably ~ 10)
-        #context_title = request['intent']['slots']['mycontext']['value']
         context_title = request['intent']['slots']['mycontext'].get('value', '')
         context_title = context_title.lower()
         count = remote_session.query(Task).join(Context).filter(and_(Context.title==context_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).count()
@@ -137,7 +135,7 @@ def intent_request(session, request):
             output_speech = "The total number of tasks is {}. ".format(count)
             now = datetime.now()
             for n,task in enumerate(tasks, start=1):
-                output_speech+="{}, {}. Modified {} days ago. ".format(n, task.title, (now-task.modified).days)
+                output_speech+="{}, {}. Created {} days ago. It is {} starred. ".format(n, task.title, (now-task.created).days, '' if task.star else 'not')
 
         else:
             output_speech = 'I did not find anything.'
