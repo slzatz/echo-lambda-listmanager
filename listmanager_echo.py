@@ -154,14 +154,15 @@ def intent_request(session, request):
     elif intent == "RetrieveFolderItems":
         folder_title = request['intent']['slots']['myfolder'].get('value', '')
         folder_title = folder_title.lower()
-        count = remote_session.query(Task).join(Folder).filter(and_(Folder.title==folder_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).count()
-        tasks = remote_session.query(Task).join(Folder).filter(and_(Folder.title==folder_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30))).limit(10).all()
+        q = remote_session.query(Task).join(Folder).filter(and_(Folder.title==folder_title, Task.completed==None, Task.deleted==False, datetime.now()-Task.modified<timedelta(days=30)))
+        count = q.count()
+        tasks = q.limit(10).all()
 
         if count:
             output_speech = "The total number of tasks is {}. ".format(count)
             now = datetime.now()
             for n,task in enumerate(tasks, start=1):
-                output_speech+="{}, {}. Created {} days ago. It is {} starred. ".format(n, task.title, (now-task.created).days, '' if task.star else 'not')
+                output_speech+="{}, {}. Created {} days ago.{}".format(n, task.title, (now-task.created).days, ' It is starred. ' if task.star else ' ')
         else:
             output_speech = "I did not find anything."
 
