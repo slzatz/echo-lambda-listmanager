@@ -77,34 +77,77 @@ def intent_request(session, request):
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':{'title':title}}
         return response
 
-    elif intent ==  "SetContext":
+    elif intent ==  "SetContextOrFolder":
+        
+        attributes = session['attributes']
+        if attributes.get('context'):
+            folder = request['intent']['slots']['mycontextorfolder'].get('value', "No Folder")
+            d = {'title':attributes.get('title', 'No title'), 'context':attributes['context'], 'folder':folder}
+            output_speech = "The item will be placed in folder {}. Do you want it to be starred?".format(folder)
+        else:
+            context = request['intent']['slots']['mycontextorfolder'].get('value', "No Context")
+            d = {'title':attributes.get('title', 'No title'), 'context':context}
+            output_speech = "The item will be placed in context {}. What folder do you want to place it in?".format(context)
 
-        context = request['intent']['slots']['mycontext']['value']
-        title = session['attributes']['title']
-        data={'title':title, 'context':context, 'note':"This was created via Amazon Echo"}
-        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
-        output_speech = "The item will be place in context {}. Do you want it to be starred?".format(context)
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':{'title':title, 'context':context}}
+        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':d}
         return response
 
     elif intent == "AMAZON.YesIntent":
-        star = True
         # ? should use dict.copy()
         title = session['attributes']['title']
-        context = session['attributes']['context']
-        data={'title':title, 'context':context, 'star':True}
-        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
-        output_speech = "The item will be starred".format(context)
+        context_title = session['attributes']['context']
+        folder_title = session['attributes']['folder']
+        #data={'title':title, 'context':context, 'folder':folder, 'star':True}
+        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        task = Task(priority=3, title=title, star=True)
+        folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
+        if folder:
+            task.folder = folder
+        else:
+            folder_title = 'No Folder'
+        context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
+        if context:
+            task.context = context
+        else:
+            context_title = 'No Context'
+        task.startdate = datetime.today().date() 
+        task.note = "Created from Echo on {}".format(task.startdate)
+        remote_session.add(task)
+        remote_session.commit()
+
+        r = requests.get(c.ec_uri+':5000/sync')
+        print r.text
+
+        output_speech = "The new item {} will be created for context {} and folder {} and it will be starred".format(title, context_title, folder_title)
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
     elif intent == "AMAZON.NoIntent":
-        star = False
         title = session['attributes']['title']
-        context = session['attributes']['context']
-        data={'title':title, 'context':context, 'star':False}
-        r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
-        output_speech = "The item will not be starred".format(context)
+        context_title = session['attributes']['context']
+        folder_title = session['attributes']['folder']
+        #data={'title':title, 'context':context, 'folder':folder, 'star':True}
+        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+        task = Task(priority=3, title=title, star=False)
+        folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
+        if folder:
+            task.folder = folder
+        else:
+            folder_title = 'No Folder'
+        context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
+        if context:
+            task.context = context
+        else:
+            context_title = 'No Context'
+        task.startdate = datetime.today().date() 
+        task.note = "Created from Echo on {}".format(task.startdate)
+        remote_session.add(task)
+        remote_session.commit()
+
+        r = requests.get(c.ec_uri+':5000/sync')
+        print r.text
+
+        output_speech = "The new item {} will be created for context {} and folder {} and it will not be starred".format(title, context_title, folder_title)
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
@@ -166,11 +209,14 @@ def intent_request(session, request):
     elif intent =="RetrieveSpecificItems":
         solr = pysolr.Solr(c.ec_uri+':8983/solr/listmanager/', timeout=10)
         queryterm = request['intent']['slots']['queryterm']['value']
+        queryterm = queryterm.replace(' ', '')
         #Initially thought the queryterm could be queryterms and hence the below
         #s = 'title:' + ' AND title:'.join(queryterm.split())
         #s = s + ' note:' + ' AND note:'.join(queryterm.split())
         s = 'title:{} note:{} tag:{}'.format(*(3*(queryterm,)))
-        fq = ['star:true', 'completed:false']
+        print s
+        #fq = ['star:true', 'completed:false']
+        fq = ['completed:false']
         result = solr.search(s, fq=fq) # rows=1 or **{'rows':1}
         if len(result):
             output_speech = ''
