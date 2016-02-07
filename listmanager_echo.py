@@ -82,7 +82,7 @@ def intent_request(session, request):
         attributes = session['attributes']
         if attributes.get('context'):
             folder = request['intent']['slots']['mycontextorfolder'].get('value', "No Folder")
-            d = {'title':attributes.get('title', 'No title'), 'context':attributes['context'], 'folder':folder}
+            d = {'new_task':True, 'title':attributes.get('title', 'No title'), 'context':attributes['context'], 'folder':folder}
             output_speech = "The item will be placed in folder {}. Do you want it to be starred?".format(folder)
         else:
             context = request['intent']['slots']['mycontextorfolder'].get('value', "No Context")
@@ -94,62 +94,72 @@ def intent_request(session, request):
 
     elif intent == "AMAZON.YesIntent":
         # ? should use dict.copy()
-        title = session['attributes']['title']
-        context_title = session['attributes']['context']
-        folder_title = session['attributes']['folder']
-        #data={'title':title, 'context':context, 'folder':folder, 'star':True}
-        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
-        task = Task(priority=3, title=title, star=True)
-        folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
-        if folder:
-            task.folder = folder
-        else:
-            folder_title = 'No Folder'
-        context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
-        if context:
-            task.context = context
-        else:
-            context_title = 'No Context'
-        task.startdate = datetime.today().date() 
-        task.note = "Created from Echo on {}".format(task.startdate)
-        remote_session.add(task)
-        remote_session.commit()
+        attributes = session['attributes']
+        if attributes.get('new_task'):
+            title = attributes['title']
+            context_title = attributes['context']
+            folder_title = attributes['folder']
+            #data={'title':title, 'context':context, 'folder':folder, 'star':True}
+            #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+            task = Task(priority=3, title=title, star=True)
+            folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
+            if folder:
+                task.folder = folder
+            else:
+                folder_title = 'No Folder'
+            context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
+            if context:
+                task.context = context
+            else:
+                context_title = 'No Context'
+            task.startdate = datetime.today().date() 
+            task.note = "Created from Echo on {}".format(task.startdate)
+            remote_session.add(task)
+            remote_session.commit()
 
-        r = requests.get(c.ec_uri+':5000/sync')
-        print r.text
+            r = requests.get(c.ec_uri+':5000/sync')
+            print r.text
 
-        output_speech = "The new item {} will be created for context {} and folder {} and it will be starred".format(title, context_title, folder_title)
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
-        return response
+            output_speech = "The new item {} will be created for context {} and folder {} and it will be starred".format(title, context_title, folder_title)
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+            return response
+        else:
+            which_task = attributes.get('which_task')
+            if which_task:
+                task = remote_session.query(Task).get(which_task)
+                output_speech = "I will read the note: " + task.note
+                response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
 
     elif intent == "AMAZON.NoIntent":
-        title = session['attributes']['title']
-        context_title = session['attributes']['context']
-        folder_title = session['attributes']['folder']
-        #data={'title':title, 'context':context, 'folder':folder, 'star':True}
-        #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
-        task = Task(priority=3, title=title, star=False)
-        folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
-        if folder:
-            task.folder = folder
-        else:
-            folder_title = 'No Folder'
-        context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
-        if context:
-            task.context = context
-        else:
-            context_title = 'No Context'
-        task.startdate = datetime.today().date() 
-        task.note = "Created from Echo on {}".format(task.startdate)
-        remote_session.add(task)
-        remote_session.commit()
+        attributes = session['attributes']
+        if attributes.get('new_task'):
+            title = attributes['title']
+            context_title = attributes['context']
+            folder_title = attributes['folder']
+            #data={'title':title, 'context':context, 'folder':folder, 'star':True}
+            #r = requests.post(c.ec_uri+":5000/incoming_from_echo", json=data)
+            task = Task(priority=3, title=title, star=False)
+            folder = remote_session.query(Folder).filter_by(title=folder_title.lower()).first()
+            if folder:
+                task.folder = folder
+            else:
+                folder_title = 'No Folder'
+            context = remote_session.query(Context).filter_by(title=context_title.lower()).first()
+            if context:
+                task.context = context
+            else:
+                context_title = 'No Context'
+            task.startdate = datetime.today().date() 
+            task.note = "Created from Echo on {}".format(task.startdate)
+            remote_session.add(task)
+            remote_session.commit()
 
-        r = requests.get(c.ec_uri+':5000/sync')
-        print r.text
+            r = requests.get(c.ec_uri+':5000/sync')
+            print r.text
 
-        output_speech = "The new item {} will be created for context {} and folder {} and it will not be starred".format(title, context_title, folder_title)
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
-        return response
+            output_speech = "The new item {} will be created for context {} and folder {} and it will not be starred".format(title, context_title, folder_title)
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+            return response
 
     elif intent == "RetrieveFolderItems":
         folder_title = request['intent']['slots']['myfolder'].get('value', '')
@@ -187,20 +197,20 @@ def intent_request(session, request):
         response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
         return response
 
-    elif intent == "RetrieveAllItems":
+    elif intent == 'RetrieveSpokenItems':
+        ####this should become retrieve text2speech items #########
+        tasks = remote_session.query(Task).join(TaskKeyword, Keyword).filter(and_(Task.completed==None,
+                                                                                  Task.deleted==False,
+                                                                                  Task.id==TaskKeyword.task_id,
+                                                                                  TaskKeyword.keyword_id==Keyword.id,
+                                                                                  Keyword.name=='text2speech')).all()
         #tasks = remote_session.query(Task).filter(Task.star==True).all()
         #tasks = remote_session.query(Task).join(Context).filter(and_(Context.title=='work', Task.star==True, Task.completed==None, datetime.now()-Task.modified<timedelta(days=30))).all()
-        try:
-            f = remote_session.query(Folder).filter_by(title='echo').one()
-        except sqla_orm_exc.NoResultFound:
-            tasks = []
-        else:
-            tasks = f.tasks
 
         if tasks:
             output_speech = ''
             for n,task in enumerate(tasks, start=1):
-                output_speech+='{}, {}. '.format(n, task.title)
+                output_speech+='{}, the title: {}, the note: {} '.format(n, task.title, task.note)
         else:
             output_speech = 'I did not find anything.'
 
@@ -221,17 +231,38 @@ def intent_request(session, request):
         result = solr.search(s, fq=fq) # rows=1 or **{'rows':1}
         if len(result):
             output_speech = ''
+            task_ids = {}
             for n,task in enumerate(result.docs, start=1):
-                output_speech+='{}, {}. '.format(n, task['title'])
-            end = True
+                output_speech+='{}, {}, {}. '.format(n, task['id'], task['title'])
+                task_ids[n] = task['id']
+            output_speech+='Which one do you want read?'
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':False}, 'sessionAttributes':{'task_ids':task_ids}}
         else:
-            output_speech = 'I did not find anything, try again'
-            end = False
+            output_speech = 'I did not find anything, sorry.'
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
 
-        response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':end}}
         return response
 
-    elif intent =="RetrieveStarredItems":
+    elif intent == 'GetTaskNumber':
+        tasknumber = request['intent']['slots']['tasknumber']['value']
+        print "tasknumber =",tasknumber
+        print "type(tasknumber)=",type(tasknumber) #"1"
+        attributes = session['attributes']
+        task_ids = attributes.get('task_ids') #{"1": 2938}
+        print "task_ids=",task_ids
+        id_ = task_ids.get(tasknumber)
+        if id_:
+            print "id_=",id_
+            task = remote_session.query(Task).get(id_)
+            output_speech = "I will read the note: " + task.note
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+            return response
+        else:
+            output_speech = 'I did not find anything, sorry.'
+            response = {'response':{'outputSpeech': {'type':'PlainText','text':output_speech},'shouldEndSession':True}}
+
+
+    elif intent == 'RetrieveStarredItems':
         context = request['intent']['slots']['mycontext']['value']
         tasks = remote_session.query(Task).join(Context).filter(and_(Context.title==context, Task.star==True, Task.completed==None, datetime.now()-Task.modified<timedelta(days=30))).all()
         output_speech = ''
